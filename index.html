@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Motion Line Comparison</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+
+<style>
+/* FONT ----------------------*/
+/* Assuming 'inktrap.otf' is handled by the environment or will be provided */
+/* GLOBAL ----------------------*/
+html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: visible;
+    background: #fff;
+    /* Reverting to system-ui since custom font file is not available */
+    font-family: system-ui, sans-serif; 
+}
+
+/* HEADER ----------------------*/
+.header {
+    position: fixed;
+    top: 0;
+    width: 100%;
+    /* This padding creates the space from the screen edges. 
+       The title will naturally start after the left padding. */
+    padding: clamp(10px, 3vw, 28px) clamp(16px, 4vw, 48px);
+    
+    /* We keep flex here just in case you add more items next to the title later */
+    display: flex; 
+    align-items: center;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    z-index: 10;
+}
+
+/* ❌ The old .header-inner CSS block has been removed, which caused the centering. */
+
+.home-btn {
+    /* --- POSITIONING --- */
+    position: fixed; /* Pin it to the viewport */
+    /* Use the same clamps as your header padding for alignment */
+    top: clamp(10px, 3vw, 28px); 
+    right: clamp(16px, 4vw, 48px);
+    z-index: 20; /* Ensure it is above everything else */
+
+    /* --- STYLING (The pill look you wanted) --- */
+    padding: 8px 14px; 
+    background: rgba(255, 255, 255, 0.9); 
+    border-radius: 999px;
+    border: 1px solid rgba(148, 163, 184, 0.6); 
+    color: #111827; 
+    text-decoration: none;
+    font-size: clamp(12px, 1.2vw, 14px); 
+    backdrop-filter: blur(12px); 
+    transition: 0.15s; 
+    white-space: nowrap;
+}
+
+.home-btn:hover {
+    background: #111827; 
+    color: white; 
+}
+
+.header-title {
+    font-size: clamp(5px, 1.1vw, 58px);
+    font-weight: 300;
+    color: #2b2d42;
+}
+
+/* TOGGLE PANEL ----------------------*/
+.toggle-panel {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: clamp(12px, 3vw, 28px);
+    padding: clamp(10px, 2vw, 14px) clamp(18px, 3vw, 24px);
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06); 
+    z-index: 20;
+}
+
+/* INDIVIDUAL TOGGLE BLOCK */
+.toggle-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: clamp(12px, 1.3vw, 14px);
+    color: #2b2d42;
+}
+
+/* CUSTOM SWITCH ----------------------*/
+.switch {
+    position: relative;
+    width: 46px;
+    height: 22px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0; left: 0;
+    right: 0; bottom: 0;
+    background-color: #d1d1d1;
+    transition: .3s;
+    border-radius: 34px;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 3px;
+    background-color: white;
+    transition: .3s;
+    border-radius: 50%;
+}
+
+/* Removed the general input:checked + .slider rule here to allow the custom colors below to take precedence */
+
+input:checked + .slider:before {
+    transform: translateX(22px);
+}
+
+/* --- LINE COLOR CUSTOMIZATIONS (NEW) --- */
+/* The colors below match the line colors in threelines.js: */
+
+/* TEACHER (ToggleTeacher) -> Violin Line: Bright Blue (86, 207, 225) */
+#toggleTeacher:checked + .slider {
+    background-color: rgb(86, 207, 225);
+}
+
+/* ATTEMPT I (ToggleA1) -> Cello Line: Lighter Blue/Gray (119, 141, 169) */
+#toggleA1:checked + .slider {
+    background-color: rgb(119, 141, 169);
+}
+
+/* ATTEMPT II (ToggleA2) -> Viola Line: Darkest Blue (27, 38, 59) */
+#toggleA2:checked + .slider {
+    background-color: rgb(27, 38, 59);
+}
+/* --------------------------------------- */
+
+
+/* DEBUG TEXT (we place it with p5, so this is optional) */
+#debug {
+    position: fixed;
+    bottom: 2vh;
+    left: 2vw;
+    color: #111;
+    font-size: clamp(12px, 1.3vw, 16px);
+    line-height: 1.4;
+    z-index: 30;
+    pointer-events: none;
+}
+
+/* --- NEW: BOTTOM LEFT CONTROLS --- */
+.controls-left {
+    position: fixed;
+    bottom: 28px;
+    /* Aligns the button with the left padding of the header */
+    left: clamp(16px, 4vw, 48px); 
+    z-index: 20;
+}
+
+.upload-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 999px;
+    background: #2b2d42; /* Dark background */
+    color: white;
+    font-size: clamp(12px, 1.2vw, 14px);
+    font-weight: 500;
+    cursor: pointer;
+    transition: 0.2s ease-in-out;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+.upload-btn:hover {
+    background: #111827;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.15);
+}
+.upload-btn .icon {
+    font-size: 16px;
+    line-height: 1;
+}
+
+</style>
+</head>
+
+<body>
+
+<div class="header">
+    <div class="header-title">Violin Study Session #03 <br> Mozart String Quartett "The Hunt" K348</div>
+</div>
+
+<a href="../index.html" class="home-btn">Home</a>
+
+<div class="controls-left">
+    <label for="csv-upload" class="upload-btn">
+        <span class="icon">↑</span> Upload New CSV
+    </label>
+    <input type="file" id="csv-upload" accept=".csv" style="display: none;">
+</div>
+
+<button id="pause-btn" class="upload-btn" style="margin-left: 8px;">
+    <span class="icon">⏸</span> Pause
+</button>
+
+<div class="toggle-panel">    
+    <div class="toggle-box">
+        TEACHER
+        <label class="switch">
+            <input type="checkbox" id="toggleTeacher" checked>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-box">
+        ATTEMPT I
+        <label class="switch">
+            <input type="checkbox" id="toggleA1">
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-box">
+        ATTEMPT II
+        <label class="switch">
+            <input type="checkbox" id="toggleA2">
+            <span class="slider"></span>
+        </label>
+    </div>
+</div>
+
+<div id="debug"></div>
+
+<main></main>
+
+<script src="threelines.js"></script>
+<script>
+document.getElementById("toggleTeacher").addEventListener("change", toggleCelloLine);
+document.getElementById("toggleA1").addEventListener("change", toggleViolinLine);
+document.getElementById("toggleA2").addEventListener("change", toggleViolaLine);
+document.getElementById("csv-upload").addEventListener("change", handleFileUpload);
+
+
+// Since the togglePlayPause logic is in threelines.js, no need for button listeners here
+</script>
+
+</body>
+</html>
